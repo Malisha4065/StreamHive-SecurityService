@@ -130,10 +130,11 @@ func (s *Store) CreateUser(email, password, role string) (*User, error) {
 // generateJWT creates a new JWT for a given user.
 func generateJWT(user *User, secret string) (string, error) {
 	claims := jwt.MapClaims{
-		"sub":  user.Email,
-		"role": user.Role,
-		"exp":  time.Now().Add(time.Hour * 24).Unix(), // Token expires in 24 hours
-		"iat":  time.Now().Unix(),
+	"sub":  user.Email,
+	"uid":  user.ID, // include user id to enable downstream authZ
+	"role": user.Role,
+	"exp":  time.Now().Add(time.Hour * 24).Unix(), // Token expires in 24 hours
+	"iat":  time.Now().Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(secret))
@@ -212,7 +213,14 @@ func (h *Handler) loginHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"token": token})
+	c.JSON(http.StatusOK, gin.H{
+		"token": token,
+		"user": gin.H{
+			"id":   user.ID,
+			"email": user.Email,
+			"role": user.Role,
+		},
+	})
 }
 
 // validateHandler is the endpoint used by other services to validate a token.
